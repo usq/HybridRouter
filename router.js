@@ -24,7 +24,6 @@ function basexHost() {
     return config.basex_host + ":" + config.basex_port
 }
 
-//server.options(config.cors, cors())
 var bodyParser = require('body-parser')
 server.use( bodyParser.json() );
 server.use(bodyParser.urlencoded({ 
@@ -35,7 +34,7 @@ server.use(bodyParser.urlencoded({
 
 // Websocket
 wss.on('connection', function connection(ws) {
-    console.log("connection established, saving")
+    console.log("connection established")
     connectedChannels.push(ws)
 
     ws.on("message", function(message) {
@@ -48,14 +47,16 @@ wss.on('connection', function connection(ws) {
 		var signal = message.data[s]
 		console.log("before subscription: ")
 		console.log((subscribedChannels[signal] || []).length + " ws subscribed")
-		subscribedChannels[signal] = subscribedChannels[signal] || []
-		console.log("after subscription: ")
-		subscribedChannels[signal].push(ws)
-		console.log(subscribedChannels[signal].length + " ws subscribed")
 		
+		subscribedChannels[signal] = subscribedChannels[signal] || []
+		subscribedChannels[signal].push(ws)
+
+		
+		console.log("after subscription: ")
+		console.log(subscribedChannels[signal].length + " ws subscribed")
 	    }
 	}
-	    
+	
     });
     
     ws.on("close", function(code, reason){
@@ -106,18 +107,23 @@ server.post('*', function(req, res) {
 	    console.log(error)
 	}
 	//do we need to send response at all here?
-	res.send(response)
+
 	var redirect = response.headers.location
 	console.log("answer from xquery, redirect to " + redirect)
 	if (redirect == undefined) {
 	    console.log("redirect is undefined, headers: ")
 	    console.log(response.headers)
+	    res.send(response)
 	    return
 	}
 	
 	get(redirect, function(resp) {
 	    console.log("got redirect basex answer: ")
 	    console.log(resp)
+
+	    console.log("returning HTTP Response")
+	    res.send(response)
+	    
 	    jsonAnswer = JSON.stringify({'type':'xmlresponse', 'xml':resp, "rid": randomid})
 
 	    if (channel == undefined) {
@@ -143,8 +149,6 @@ server.post('*', function(req, res) {
 
 
 function get(path, callback) {
-    //if (path.indexOf("favicon") != -1) { return callback("") }
-
     var basex = basexHost()
     if (basex.charAt(basex.length - 1) != "/") {
 	basex += "/"
@@ -154,14 +158,14 @@ function get(path, callback) {
 	path = path.substr(1, path.length)
     }
     basex += path
-	
+    
     var fullPath = basex
     console.log("get request to " + fullPath)
     request.get(fullPath, function (error, response, body){
-		console.log("got answer from basex ")
-		console.log(error)
-		console.log(body)
-		callback(body)
+	console.log("got answer from basex ")
+	console.log(error)
+	console.log(body)
+	callback(body)
     });
 }
 
